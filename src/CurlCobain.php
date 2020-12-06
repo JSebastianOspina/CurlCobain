@@ -9,6 +9,8 @@ class CurlCobain
     public $endpoint = null;
     public $httpmethod = null;
     public $response = null;
+    public $contentType = null;
+    public $headers = array();
     /**
      * Constructor 
      *
@@ -65,6 +67,12 @@ class CurlCobain
             }
         }
     }
+    public function execute()
+    {
+        $this->response = curl_exec($this->curl);
+        //curl_close($this->curl);
+        return $this->response;
+    }
     /**
      * Send Get request
      *
@@ -75,40 +83,88 @@ class CurlCobain
     {
 
         if ($queryStrings == null) {
-            $this->response = curl_exec($this->curl);
-            return $this->response;
+            return $this->execute();
         } else {
             $this->setQueryString($queryStrings);
-            $this->response = curl_exec($this->curl);
-            return $this->response;
+            return $this->execute();
         }
     }
-    public function setPostBody($postBody)
+    /**
+     * Set Headers for POST request
+     *
+     * @param string $headerType for example Content type
+     * @param string $value for example aplication/json
+     * @return void
+     */
+    public function setHeaders($headerType, $value)
     {
-        if (is_array($postBody) && isset($postBody)) {
-            curl_setopt($this->curl, CURLOPT_POSTFIELDS, $postBody);
+        $header = $headerType . ': ' . $value;
+        array_push($this->headers, $header);
+        curl_setopt($this->curl, CURLOPT_HTTPHEADER, $this->headers);
+    }
+    /**
+     * Set contentType for the request
+     *
+     * @param string $contentType Desired request's contentType.
+     * @return void
+     */
+    public function setContentType(string $contentType)
+    {
+
+        switch ($contentType) {
+            case ('application/json'):
+                $this->setHeaders('Content-Type', 'application/json');
+                break;
+            case ('json'):
+                $this->setHeaders('Content-Type', 'application/json');
+                break;
+           
+            default:
+                $this->setHeaders('Content-Type', 'ptoamo');
+                break;
+        }
+    }
+    /**
+     * Set body for POST request, if help set to true it will detect content type and convert body to
+     * the corresponding encoding.
+     * 
+     * @param mixed $postBody
+     * @param boolean $help True if you want to auto-encode content type
+     * @return void
+     */
+    public function setPostBody($postBody, bool $help = false)
+    {
+        if (isset($postBody)) {
+
+            if (!$help) {
+                curl_setopt($this->curl, CURLOPT_POSTFIELDS, $postBody); //will set ignoring encoding
+            } else {
+                $this->setContentType($this->contentType);
+            }
+        } else {
+            throw new \Exception('No bodt has been defined for post request');
         }
     }
     /**
      * Make post request
      *
-     * @param array $postBody
+     * @param mixed $postBody
      * @return void
      */
-    public function post(array $postBody = null)
+    public function post($postBody = null)
     {
         curl_setopt($this->curl, CURLOPT_POST, true); //turn POST method on
+        curl_setopt($this->curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
 
         if (empty($postBody)) {
-            return curl_exec($this->curl);
+            return $this->execute();
         } else {
             $this->setPostBody($postBody);
-            return curl_exec($this->curl);
+            return $this->execute();
         }
     }
     public function getResponse()
     {
-
         curl_exec($this->curl);
     }
     /**
