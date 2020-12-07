@@ -23,9 +23,9 @@ That's all!
 
 We change from this:
 
-![alt](www/img/before.png)
+![alt](www/images/before.png)
 
 to this:
-![alt](www/img/after.png)
+![alt](www/images/after.png)
 
 *See Docs* for more info, feel free to send pull request if You want to contribute to this proyect.
