@@ -105,7 +105,7 @@ class CurlCobain
     /**
      * Set contentType for the request
      *
-     * @param string $contentType Desired request's contentType.
+     * @param string $contentType Desired request's contentType (Multipart,Json)
      * @return void
      */
     public function setContentType(string $contentType)
@@ -118,7 +118,7 @@ class CurlCobain
             case ('json'):
                 $this->setHeaders('Content-Type', 'application/json');
                 break;
-           
+
             default:
                 $this->setHeaders('Content-Type', 'ptoamo');
                 break;
@@ -129,37 +129,44 @@ class CurlCobain
      * the corresponding encoding.
      * 
      * @param mixed $postBody
-     * @param boolean $help True if you want to auto-encode content type
+     * @param string $contentType If you set content type it will set it using SetContentType function
      * @return void
      */
-    public function setPostBody($postBody, bool $help = false)
+    public function setPostBody($postBody, string $contentType = '')
     {
         if (isset($postBody)) {
 
-            if (!$help) {
+            if (empty($contentType)) {
                 curl_setopt($this->curl, CURLOPT_POSTFIELDS, $postBody); //will set ignoring encoding
             } else {
-                $this->setContentType($this->contentType);
+                $this->setContentType($contentType);
+                curl_setopt($this->curl, CURLOPT_POSTFIELDS, $postBody);
             }
         } else {
-            throw new \Exception('No bodt has been defined for post request');
+            throw new \Exception('No body has been defined for post request');
         }
     }
     /**
-     * Make post request
+     * Make post request, if set content type it will auto-convert param an set curlopt contenty type
+     * for you.
      *
      * @param mixed $postBody
+     * @param string $contentType Default:multipart/form data, can set to json or other.
      * @return void
      */
-    public function post($postBody = null)
+    public function post($postBody = null, string $contentType = null)
     {
         curl_setopt($this->curl, CURLOPT_POST, true); //turn POST method on
-        curl_setopt($this->curl, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
 
         if (empty($postBody)) {
             return $this->execute();
         } else {
-            $this->setPostBody($postBody);
+            if ($contentType != null) {
+                
+                $this->setPostBody($postBody,$contentType);
+            } else {
+                $this->setPostBody($postBody);
+            }
             return $this->execute();
         }
     }
