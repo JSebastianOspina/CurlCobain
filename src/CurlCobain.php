@@ -120,7 +120,7 @@ class CurlCobain
                 break;
 
             default:
-                $this->setHeaders('Content-Type', 'ptoamo');
+                $this->setHeaders('Content-Type', $contentType);
                 break;
         }
     }
@@ -188,4 +188,26 @@ class CurlCobain
     {
         return json_decode($this->response);
     }
+    public function setOption(int $option = null, string $value = null){
+        if($option==null || $value==null){
+            throw new \Exception('Can not set to empty value to curl opt');
+        }
+       
+        curl_setopt($this->curl,CURLOPT_USERPWD,$value);
+    }
+    /**
+     * This function will set CURLOPT_USERPWD and will format the params for your you.
+     *
+     * @param string $user User for conection
+     * @param string $password Password for conection
+     * @return void
+     */
+    public function setUserAndPassword(string $user,string $password){
+        $formated = $user.':'.$password;
+        $this->setOption(CURLOPT_USERPWD,$formated);
+
+    }
 }
+
+
+
