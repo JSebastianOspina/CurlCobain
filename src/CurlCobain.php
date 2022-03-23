@@ -2,212 +2,214 @@
 
 namespace Ospina\CurlCobain; //Este es el mismo definido en composer como src, apartir de acá comienza la estrucura del codigo 
 
+/**
+ *
+ */
 class CurlCobain
 {
-    public $curl;
-    public $url = null;
-    public $endpoint = null;
-    public $httpmethod = null;
-    public $response = null;
-    public $contentType = null;
-    public $headers = array();
     /**
-     * Constructor 
-     *
-     * @param string $url The request url.
+     * @var
      */
-    public function __construct($url)
-    {
+    public $url;
+    /**
+     * @var
+     */
+    public $finalUrl;
+    /**
+     * @var mixed|string
+     */
+    public $method;
+    /**
+     * @var
+     */
+    public $data;
+    /**
+     * @var
+     */
+    public $queryParams;
+    /**
+     * @var
+     */
+    public $headers;
+    /**
+     * @var
+     */
+    public $cookies;
+    /**
+     * @var bool
+     */
+    public $requireSSL = false;
+    /**
+     * @var false|resource
+     */
+    private $ch;
 
-        $this->curl = curl_init();
-        curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, true); //This is required in order to see the response
-        $this->setUrl($url);
-    }
     /**
-     * Set endpoint for url
-     *
-     * @param string $endpoint
-     * @return void
+     * CurlCobain constructor.
+     * @param $url
+     * @param $method
      */
-    public function setEndpoint($endpoint)
+    public function __construct($url, $method = 'GET')
     {
-        if (empty($this->url)) {
-            throw new \Exception("You can not add an endpoint to an empty url");
-        } else {
-            $url = $this->url . '/' . $endpoint;
-            $this->setUrl($url);
-        }
-    }
-    /**
-     * Set the url for the request
-     *
-     * @param string $url
-     * @return void
-     */
-    public function setUrl(string $url)
-    {
+        $this->ch = curl_init();
         $this->url = $url;
-        curl_setopt($this->curl, CURLOPT_URL, $this->url);
+        $this->method = $method;
+        $this->basicSetUp();
+
     }
+
+
     /**
-     * Set Query Strings for desired get HTTP Request
-     *
-     * @param array $queryStrings Http get query strings
      * @return void
      */
-    public function setQueryString(array $queryStrings)
-    {
-        if (is_array($queryStrings)) {
-            if (isset($this->url)) {
-                $this->queryString = http_build_query($queryStrings);
-                $this->url = $this->url . '?' . $this->queryString;
-                curl_setopt($this->curl, CURLOPT_URL, $this->url);
-            } else {
-                throw new \Exception('Can not add query string to null URL');
-            }
-        }
-    }
-    public function execute()
-    {
-        $this->response = curl_exec($this->curl);
-        //curl_close($this->curl);
-        return $this->response;
-    }
-    /**
-     * Send Get request
-     *
-     * @param array $queryStrings
-     * @return string response
-     */
-    public function get(array $queryStrings = null)
+    private function basicSetUp(): void
     {
 
-        if ($queryStrings == null) {
-            return $this->execute();
+        $this->setCurlOption(CURLOPT_URL, $this->url);
+        $this->setCurlOption(CURLOPT_RETURNTRANSFER, true); //Get text instead of void
+        $this->setCurlOption(CURLOPT_SSL_VERIFYHOST, $this->requireSSL);
+        $this->setCurlOption(CURLOPT_SSL_VERIFYPEER, $this->requireSSL);
+        //handle type of http method
+
+        if ($this->method !== 'GET' && $this->method !== 'POST') {
+            $this->setCurlOption(CURLOPT_CUSTOMREQUEST, $this->method);
         } else {
-            $this->setQueryString($queryStrings);
-            return $this->execute();
+            $this->setCurlOption(CURLOPT_POST, $this->method === 'POST');
+        }
+
+    }
+
+    /**
+     * @param $option
+     * @param $value
+     * @return void
+     */
+    public function setCurlOption($option, $value): void
+    {
+        curl_setopt($this->ch, $option, $value);
+    }
+
+    /**
+     * @param string $fieldName
+     * @param string $value
+     * @return void
+     */
+    public function setQueryParam(string $fieldName, string $value)
+    {
+        $this->queryParams[$fieldName] = $value;
+
+        $this->buildUrl();
+    }
+
+    /**
+     * @param array $queryParams
+     * @return void
+     */
+    public function setQueryParamsAsArray(array $queryParams): void
+    {
+        foreach ($queryParams as $key => $value) {
+            $this->setQueryParam($key, $value);
         }
     }
+
     /**
-     * Set Headers for POST request
-     *
-     * @param string $headerType for example Content type
-     * @param string $value for example aplication/json
      * @return void
      */
-    public function setHeaders($headerType, $value)
+    private function buildUrl()
     {
-        $header = $headerType . ': ' . $value;
-        array_push($this->headers, $header);
-        curl_setopt($this->curl, CURLOPT_HTTPHEADER, $this->headers);
-    }
-    /**
-     * Set contentType for the request
-     *
-     * @param string $contentType Desired request's contentType (Multipart,Json)
-     * @return void
-     */
-    public function setContentType(string $contentType)
-    {
-
-        switch ($contentType) {
-            case ('application/json'):
-                $this->setHeaders('Content-Type', 'application/json');
-                break;
-            case ('json'):
-                $this->setHeaders('Content-Type', 'application/json');
-                break;
-
-            default:
-                $this->setHeaders('Content-Type', $contentType);
-                break;
-        }
-    }
-    /**
-     * Set body for POST request, if help set to true it will detect content type and convert body to
-     * the corresponding encoding.
-     * 
-     * @param mixed $postBody
-     * @param string $contentType If you set content type it will set it using SetContentType function
-     * @return void
-     */
-    public function setPostBody($postBody, string $contentType = '')
-    {
-        if (isset($postBody)) {
-
-            if (empty($contentType)) {
-                curl_setopt($this->curl, CURLOPT_POSTFIELDS, $postBody); //will set ignoring encoding
-            } else {
-                $this->setContentType($contentType);
-                curl_setopt($this->curl, CURLOPT_POSTFIELDS, $postBody);
-            }
+        if (count($this->queryParams) === 0) {
+            $this->finalUrl = $this->url;
         } else {
-            throw new \Exception('No body has been defined for post request');
+            $this->finalUrl = $this->url . '?' . http_build_query($this->queryParams);
         }
+        $this->setCurlOption(CURLOPT_URL, $this->finalUrl);
     }
+
     /**
-     * Make post request, if set content type it will auto-convert param an set curlopt contenty type
-     * for you.
-     *
-     * @param mixed $postBody
-     * @param string $contentType Default:multipart/form data, can set to json or other.
+     * @param array $headers
      * @return void
      */
-    public function post($postBody = null, string $contentType = null)
+    public function setHeadersAsArray(array $headers): void
     {
-        curl_setopt($this->curl, CURLOPT_POST, true); //turn POST method on
+        $this->headers[] = $headers;
+        $this->setCurlOption(CURLOPT_HTTPHEADER, $this->headers);
+    }
 
-        if (empty($postBody)) {
-            return $this->execute();
-        } else {
-            if ($contentType != null) {
-                
-                $this->setPostBody($postBody,$contentType);
-            } else {
-                $this->setPostBody($postBody);
-            }
-            return $this->execute();
-        }
-    }
-    public function getResponse()
-    {
-        curl_exec($this->curl);
-    }
     /**
-     * Get HTTP status code of last request.
-     *
-     * @return string
+     * @return bool|string
      */
-    public function getLastStatusCode()
+    public function makeRequest()
     {
-        $statusCode = curl_getinfo($this->curl, CURLINFO_HTTP_CODE);
-        return $statusCode;
+        $resp = curl_exec($this->ch);
+        curl_close($this->ch);
+        return $resp;
     }
-    public function json()
-    {
-        return json_decode($this->response);
-    }
-    public function setOption(int $option = null, string $value = null){
-        if($option==null || $value==null){
-            throw new \Exception('Can not set to empty value to curl opt');
-        }
-       
-        curl_setopt($this->curl,CURLOPT_USERPWD,$value);
-    }
+
     /**
-     * This function will set CURLOPT_USERPWD and will format the params for your you.
-     *
-     * @param string $user User for conection
-     * @param string $password Password for conection
      * @return void
      */
-    public function setUserAndPassword(string $user,string $password){
-        $formated = $user.':'.$password;
-        $this->setOption(CURLOPT_USERPWD,$formated);
-
+    public function enableSSL()
+    {
+        $this->requireSSL = true;
+        $this->setCurlOption(CURLOPT_SSL_VERIFYPEER, $this->requireSSL);
     }
+
+    /**
+     * @return void
+     */
+    public function disableSSL()
+    {
+        $this->requireSSL = false;
+        $this->setCurlOption(CURLOPT_SSL_VERIFYPEER, $this->requireSSL);
+    }
+
+    /**
+     * @param string $method
+     * @return void
+     */
+    public function setMethod(string $method)
+    {
+        $this->method = $method;
+        $this->setCurlOption(CURLOPT_POST, $this->method === 'POST');
+    }
+
+    /**
+     * @param array $data
+     * @return void
+     */
+    public function setDataAsJson(array $data)
+    {
+        $this->setCurlOption(CURLOPT_POSTFIELDS, json_encode($data));
+        $this->setHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * @param array $data
+     * @return void
+     */
+    public function setDataAsFormUrlEncoded(array $data)
+    {
+        $postFields = http_build_query($data);
+
+        $this->setCurlOption(CURLOPT_POSTFIELDS, $postFields);
+        $this->setHeader('Content-Type', 'application/x-www-form-urlencoded');
+    }
+
+    /**
+     * @param string $headerName
+     * @param string $headerValue
+     * @return void
+     */
+    public function setHeader(string $headerName, string $headerValue): void
+    {
+        $this->headers[] = $headerName . ': ' . $headerValue;
+        $this->setCurlOption(CURLOPT_HTTPHEADER, $this->headers);
+    }
+
 }
+
+
+
 
 
 
