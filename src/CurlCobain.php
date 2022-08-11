@@ -1,6 +1,6 @@
 <?php
 
-namespace Ospina\CurlCobain; //Este es el mismo definido en composer como src, apartir de acá comienza la estrucura del codigo 
+namespace Ospina\CurlCobain;
 
 /**
  *
@@ -45,6 +45,11 @@ class CurlCobain
     private $ch;
 
     /**
+     * @var
+     */
+    private $statusCode;
+
+    /**
      * CurlCobain constructor.
      * @param $url
      * @param $method
@@ -57,7 +62,6 @@ class CurlCobain
         $this->basicSetUp();
 
     }
-
 
     /**
      * @return void
@@ -89,16 +93,9 @@ class CurlCobain
         curl_setopt($this->ch, $option, $value);
     }
 
-    /**
-     * @param string $fieldName
-     * @param string $value
-     * @return void
-     */
-    public function setQueryParam(string $fieldName, string $value)
+    public function getCurlInstance()
     {
-        $this->queryParams[$fieldName] = $value;
-
-        $this->buildUrl();
+        return $this->ch;
     }
 
     /**
@@ -110,6 +107,18 @@ class CurlCobain
         foreach ($queryParams as $key => $value) {
             $this->setQueryParam($key, $value);
         }
+    }
+
+    /**
+     * @param string $fieldName
+     * @param string $value
+     * @return void
+     */
+    public function setQueryParam(string $fieldName, string $value)
+    {
+        $this->queryParams[$fieldName] = $value;
+
+        $this->buildUrl();
     }
 
     /**
@@ -131,18 +140,58 @@ class CurlCobain
      */
     public function setHeadersAsArray(array $headers): void
     {
-        $this->headers[] = $headers;
+        foreach ($headers as $name => $value) {
+            $this->setHeader($name, $value);
+        }
+    }
+
+    /**
+     * @param string $headerName
+     * @param string $headerValue
+     * @return void
+     */
+    public function setHeader(string $headerName, string $headerValue): void
+    {
+        $this->headers[] = $headerName . ': ' . $headerValue;
         $this->setCurlOption(CURLOPT_HTTPHEADER, $this->headers);
     }
 
     /**
      * @return bool|string
      */
-    public function makeRequest()
+    public function makeRequest($close = true)
     {
         $resp = curl_exec($this->ch);
-        curl_close($this->ch);
+        $this->updateStatusCode();
+        if ($close) {
+            $this->close();
+        }
         return $resp;
+    }
+
+    /**
+     * @return void
+     */
+    public function updateStatusCode(): void
+    {
+        $this->statusCode = curl_getinfo($this->ch, CURLINFO_HTTP_CODE);
+
+    }
+
+    /**
+     * @return void
+     */
+    public function close(): void
+    {
+        curl_close($this->ch);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getStatusCode()
+    {
+        return $this->statusCode;
     }
 
     /**
@@ -177,7 +226,7 @@ class CurlCobain
      * @param array $data
      * @return void
      */
-    public function setDataAsJson(array $data)
+    public function setDataAsJson(array $data): void
     {
         $this->setCurlOption(CURLOPT_POSTFIELDS, json_encode($data));
         $this->setHeader('Content-Type', 'application/json');
@@ -193,18 +242,9 @@ class CurlCobain
 
         $this->setCurlOption(CURLOPT_POSTFIELDS, $postFields);
         $this->setHeader('Content-Type', 'application/x-www-form-urlencoded');
+
     }
 
-    /**
-     * @param string $headerName
-     * @param string $headerValue
-     * @return void
-     */
-    public function setHeader(string $headerName, string $headerValue): void
-    {
-        $this->headers[] = $headerName . ': ' . $headerValue;
-        $this->setCurlOption(CURLOPT_HTTPHEADER, $this->headers);
-    }
 
 }
 
