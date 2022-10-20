@@ -40,20 +40,22 @@ class CurlCobain
      */
     public $requireSSL = false;
     /**
+     * CurlCobain constructor.
+     * @param $url
+     * @param $method
+     */
+
+    public $mc;
+    /**
      * @var false|resource
      */
+    public $multipleCurlStorer;
     private $ch;
-
     /**
      * @var
      */
     private $statusCode;
 
-    /**
-     * CurlCobain constructor.
-     * @param $url
-     * @param $method
-     */
     public function __construct($url, $method = 'GET')
     {
         $this->ch = curl_init();
@@ -93,9 +95,17 @@ class CurlCobain
         curl_setopt($this->ch, $option, $value);
     }
 
-    public function getCurlInstance()
+    public static function createPararellInstance()
     {
-        return $this->ch;
+        $paralellCurl = new self('');
+        $paralellCurl->initializeMC();
+        return $paralellCurl;
+    }
+
+    private function initializeMC()
+    {
+        $this->mc = curl_multi_init();
+
     }
 
     /**
@@ -243,6 +253,34 @@ class CurlCobain
         $this->setCurlOption(CURLOPT_POSTFIELDS, $postFields);
         $this->setHeader('Content-Type', 'application/x-www-form-urlencoded');
 
+    }
+
+    public function addInstanteToPool(CurlCobain $curl)
+    {
+        $this->multipleCurlStorer[] = $curl->getCurlInstance();
+        curl_multi_add_handle($this->mc, $curl->getCurlInstance());
+    }
+
+    public function getCurlInstance()
+    {
+        return $this->ch;
+    }
+
+    public function makePararellRequest(): void
+    {
+        do {
+            curl_multi_exec($this->mc, $running);
+            curl_multi_select($this->mc);
+        } while ($running > 0);
+    }
+
+    public function getParellRequestResponse()
+    {
+        $response = [];
+        foreach ($this->multipleCurlStorer as $value) {
+            $response[] = curl_multi_getcontent($value);
+        }
+        return $response;
     }
 
 
