@@ -169,13 +169,19 @@ class CurlCobain
     /**
      * @return bool|string
      */
-    public function makeRequest($close = true)
+    public function makeRequest($close = true, $throwOnFailure = false)
     {
         $resp = curl_exec($this->ch);
         $this->updateStatusCode();
+
+        if ($this->statusCode >= 400 && $throwOnFailure) {
+            throw new \RuntimeException($resp, $this->statusCode);
+        }
+
         if ($close) {
             $this->close();
         }
+
         return $resp;
     }
 
